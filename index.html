@@ -3,30 +3,98 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Liber Rosterum</title>
-<meta name="description" content="Ростер-билдер Horus Heresy 3.0 — работает офлайн">
-<meta name="theme-color" content="#0A0908">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Liber Rosterum">
-<meta name="format-detection" content="telephone=no">
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="stylesheet" href="css/app.css">
+<title>Liber Rosterum · полная веб-версия</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0A0908; overflow: hidden; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+</style>
 </head>
 <body>
-<div id="bg"></div>
-<div id="app"></div>
-<div id="sheet-wrap"><div class="shade"></div><div id="sheet"></div></div>
-<div id="toast"></div>
+<canvas id="c"></canvas>
+<input id="lrin" type="text" autocomplete="off" autocorrect="off" style="position:fixed;display:none;z-index:5;box-sizing:border-box;margin:0;border:1px solid #C9A55A;background:#F1E4C2;color:#2B1E12;font:18px sans-serif;padding:6px 10px;outline:none;">
+<script>
+  // Поле ввода подложки: нативный input на месте поля в канвасе (см. android.widget.EditText)
+  window.lrEdit = function (x, y, w, h, value, hint, onText, onDone) {
+    var el = document.getElementById('lrin');
+    el.style.display = 'block';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.value = value;
+    el.placeholder = hint;
+    el.oninput = function () { onText(el.value); };
+    el.onkeydown = function (e) { if (e.key === 'Enter') el.blur(); };
+    el.onblur = function () {
+      el.style.display = 'none';
+      el.oninput = el.onblur = el.onkeydown = null;
+      onDone();
+    };
+    el.focus();
+  };
+</script>
+<div id="boot" style="position:fixed;left:0;right:0;top:45%;text-align:center;color:#C9A55A;font:16px sans-serif;padding:0 16px;">Загрузка…</div>
+<script src="js/assets.js"></script>
 <script src="js/engine.js"></script>
-<script src="js/glyphs.js"></script>
-<script src="js/theme.js"></script>
-<script src="js/store.js"></script>
-<script src="js/zip.js"></script>
-<script src="js/names.js"></script>
-<script src="js/app.js"></script>
+<script src="js/bsdata.js"></script>
+<script>
+(function () {
+  // Подложка android.* рисует на этом холсте (см. full/NOTES.md)
+  window.LRCANVAS = document.getElementById('c');
+  window.LRIMG = {};
+  // TeaVM без модулей: main — функция движка; она регистрирует запуск (lrStart)
+  if (typeof main === 'function') main([]);
+
+  // Шрифты из Android-ассетов под семействами, которые ждёт android.graphics.Typeface
+  var fonts = [
+    ['LRCinzel900', 'fonts/Cinzel-900.ttf'],
+    ['LRCinzel700', 'fonts/Cinzel-700.ttf'],
+    ['LRCormorant', 'fonts/CormorantSC-Bold.ttf'],
+    ['LRPTBold', 'fonts/PT_Sans-Narrow-Web-Bold.ttf'],
+    ['LRPTRegular', 'fonts/PT_Sans-Narrow-Web-Regular.ttf']
+  ];
+  var waits = fonts.map(function (f) {
+    var ff = new FontFace(f[0], 'url(' + f[1] + ')');
+    document.fonts.add(ff);
+    return ff.load().catch(function () { });
+  });
+  // Картинки грузим заранее: android.graphics.BitmapFactory работает синхронно
+  window.LR_ASSETS.forEach(function (p) {
+    waits.push(new Promise(function (ok) {
+      var im = new Image();
+      im.onload = function () { window.LRIMG[p] = im; ok(); };
+      im.onerror = function () { ok(); };
+      im.src = p;
+    }));
+  });
+
+  // Касания → подложка: 0 вниз, 1 движение, 2 вверх, 3 отмена
+  var el = window.LRCANVAS, down = false;
+  function send(kind, e) {
+    if (!window.lrPtr) return;
+    var r = el.getBoundingClientRect();
+    window.lrPtr(kind, e.clientX - r.left, e.clientY - r.top);
+  }
+  el.addEventListener('pointerdown', function (e) { down = true; send(0, e); });
+  el.addEventListener("pointermove", function (e) { send(1, e); });
+  el.addEventListener("wheel", function (e) { if (window.lrPtr) { e.preventDefault(); window.lrPtr(4, 0, e.deltaY); } }, { passive: false });
+  el.addEventListener('pointerup', function (e) { down = false; send(2, e); });
+  el.addEventListener('pointercancel', function (e) { down = false; send(3, e); });
+
+  function status(t) { var el = document.getElementById('boot'); if (el) el.textContent = t; }
+  Promise.all(waits).then(function () {
+    status('Каталоги BSData…');
+    return window.lrLoadData();
+  }).catch(function (e) {
+    // без сети и без кеша — играем без каталогов (фракции пустые)
+    status('Каталоги не загружены: ' + e.message);
+    window.LRDATA = null;
+  }).then(function () {
+    var el = document.getElementById('boot');
+    if (el) el.style.display = 'none';
+    if (window.lrStart) window.lrStart();
+  });
+})();
+</script>
 </body>
 </html>
