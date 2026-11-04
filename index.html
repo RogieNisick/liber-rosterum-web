@@ -74,6 +74,16 @@
       window.LRTEXT[name] = t;
     }).catch(function () { }));
   });
+  // Фото миниатюр, сохранённые в браузере (lr-photo/<ключ>): грузим в LRIMG под путём photo:<ключ>
+  try {
+    Object.keys(localStorage).forEach(function (k) {
+      if (k.indexOf('lr-photo/') !== 0) return;
+      var im = new Image();
+      window.LRIMG['photo:' + k.substring('lr-photo/'.length)] = im;
+      waits.push(new Promise(function (ok) { im.onload = ok; im.onerror = ok; }));
+      im.src = localStorage.getItem(k);
+    });
+  } catch (e) { }
 
   // Касания → подложка: 0 вниз, 1 движение, 2 вверх, 3 отмена
   var el = window.LRCANVAS, down = false;
