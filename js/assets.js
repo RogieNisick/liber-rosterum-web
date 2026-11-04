@@ -18,3 +18,8 @@ window.LR_ASSETS = [
   "art/slot_war_engine.png",
   "art/slot_warlord.png",
   "news_scroll.png"];
+window.LR_TEXT = [
+  "phrases.txt",
+  "phrases_bold.txt",
+  "phrases_warp.txt",
+];

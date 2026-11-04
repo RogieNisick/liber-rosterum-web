@@ -67,6 +67,13 @@
       im.src = p;
     }));
   });
+  // Текстовые ассеты (фразы сервочерепа): lrshim.Assets читает их синхронно
+  window.LRTEXT = {};
+  window.LR_TEXT.forEach(function (name) {
+    waits.push(fetch('assets/' + name).then(function (r) { return r.text(); }).then(function (t) {
+      window.LRTEXT[name] = t;
+    }).catch(function () { }));
+  });
 
   // Касания → подложка: 0 вниз, 1 движение, 2 вверх, 3 отмена
   var el = window.LRCANVAS, down = false;
