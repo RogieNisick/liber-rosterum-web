@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Liber Rosterum · полная веб-версия</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #0A0908; overflow: hidden; }
-  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* Холст закреплён на экране: iOS Safari иначе прокручивает страницу и сдвигает меню вверх */
+  html, body { margin: 0; width: 100%; height: 100%; position: fixed; inset: 0; background: #0A0908; overflow: hidden; overscroll-behavior: none; touch-action: none; }
+  canvas { position: fixed; left: 0; top: 0; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 </style>
 </head>
 <body>
@@ -14,6 +15,26 @@
 <input id="lrin" type="text" autocomplete="off" autocorrect="off" style="position:fixed;display:none;z-index:5;box-sizing:border-box;margin:0;border:1px solid #C9A55A;background:#F1E4C2;color:#2B1E12;font:18px sans-serif;padding:6px 10px;outline:none;">
 <textarea id="lrta" autocomplete="off" style="position:fixed;display:none;z-index:5;box-sizing:border-box;margin:0;border:1px solid #C9A55A;background:#F1E4C2;color:#2B1E12;font:18px sans-serif;padding:6px 10px;outline:none;resize:none;"></textarea>
 <script>
+  // Безопасная зона (вырез, системная строка, полоса индикатора): меню сдвигается внутрь (см. lrshim.Shell)
+  window.LRINSET = { top: 0, right: 0, bottom: 0, left: 0 };
+  (function () {
+    var probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;' +
+      'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);';
+    document.body.appendChild(probe);
+    function measureInsets() {
+      var cs = getComputedStyle(probe);
+      window.LRINSET = {
+        top: parseFloat(cs.paddingTop) || 0,
+        right: parseFloat(cs.paddingRight) || 0,
+        bottom: parseFloat(cs.paddingBottom) || 0,
+        left: parseFloat(cs.paddingLeft) || 0
+      };
+    }
+    measureInsets();
+    window.addEventListener('resize', measureInsets);
+    window.addEventListener('orientationchange', measureInsets);
+  })();
   // Поле ввода подложки: нативный input на месте поля в канвасе (см. android.widget.EditText)
   window.lrEdit = function (x, y, w, h, value, hint, onText, onDone, multi) {
     var el = document.getElementById(multi ? 'lrta' : 'lrin');
