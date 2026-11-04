@@ -12,19 +12,20 @@
 <body>
 <canvas id="c"></canvas>
 <input id="lrin" type="text" autocomplete="off" autocorrect="off" style="position:fixed;display:none;z-index:5;box-sizing:border-box;margin:0;border:1px solid #C9A55A;background:#F1E4C2;color:#2B1E12;font:18px sans-serif;padding:6px 10px;outline:none;">
+<textarea id="lrta" autocomplete="off" style="position:fixed;display:none;z-index:5;box-sizing:border-box;margin:0;border:1px solid #C9A55A;background:#F1E4C2;color:#2B1E12;font:18px sans-serif;padding:6px 10px;outline:none;resize:none;"></textarea>
 <script>
   // Поле ввода подложки: нативный input на месте поля в канвасе (см. android.widget.EditText)
-  window.lrEdit = function (x, y, w, h, value, hint, onText, onDone) {
-    var el = document.getElementById('lrin');
+  window.lrEdit = function (x, y, w, h, value, hint, onText, onDone, multi) {
+    var el = document.getElementById(multi ? 'lrta' : 'lrin');
     el.style.display = 'block';
     el.style.left = x + 'px';
     el.style.top = y + 'px';
     el.style.width = w + 'px';
-    el.style.height = h + 'px';
+    el.style.height = (multi ? Math.max(h, 96) : h) + 'px';
     el.value = value;
     el.placeholder = hint;
     el.oninput = function () { onText(el.value); };
-    el.onkeydown = function (e) { if (e.key === 'Enter') el.blur(); };
+    el.onkeydown = function (e) { if (e.key === (multi ? 'Escape' : 'Enter')) el.blur(); };
     el.onblur = function () {
       el.style.display = 'none';
       el.oninput = el.onblur = el.onkeydown = null;
@@ -35,6 +36,9 @@
 </script>
 <div id="boot" style="position:fixed;left:0;right:0;top:45%;text-align:center;color:#C9A55A;font:16px sans-serif;padding:0 16px;">Загрузка…</div>
 <script src="js/assets.js"></script>
+<script src="js/books.js"></script>
+<script src="js/photos.js"></script>
+<script src="js/feeds.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/bsdata.js"></script>
 <script>
@@ -74,29 +78,63 @@
       window.LRTEXT[name] = t;
     }).catch(function () { }));
   });
-  // Фото миниатюр, сохранённые в браузере (lr-photo/<ключ>): грузим в LRIMG под путём photo:<ключ>
-  try {
-    Object.keys(localStorage).forEach(function (k) {
-      if (k.indexOf('lr-photo/') !== 0) return;
-      var im = new Image();
-      window.LRIMG['photo:' + k.substring('lr-photo/'.length)] = im;
-      waits.push(new Promise(function (ok) { im.onload = ok; im.onerror = ok; }));
-      im.src = localStorage.getItem(k);
-    });
-  } catch (e) { }
+  // Фото миниатюр лежат в IndexedDB (web/js/photos.js); старые из localStorage переезжают туда же.
+  // Кадры грузим в LRIMG под путём photo:<ключ>
+  waits.push(window.lrPhotos.loadAll());
 
-  // Касания → подложка: 0 вниз, 1 движение, 2 вверх, 3 отмена
-  var el = window.LRCANVAS, down = false;
+  // Касания → подложка: 0 вниз, 1 движение, 2 вверх, 3 отмена, 4 колесо, 5 щипок (коэффициент в window.lrPinchF), 6 конец щипка
+  var el = window.LRCANVAS, down = false, pts = {}, pinching = false, ignore = false, d0 = 1;
   function send(kind, e) {
     if (!window.lrPtr) return;
     var r = el.getBoundingClientRect();
     window.lrPtr(kind, e.clientX - r.left, e.clientY - r.top);
   }
-  el.addEventListener('pointerdown', function (e) { down = true; send(0, e); });
-  el.addEventListener("pointermove", function (e) { send(1, e); });
-  el.addEventListener("wheel", function (e) { if (window.lrPtr) { e.preventDefault(); window.lrPtr(4, 0, e.deltaY); } }, { passive: false });
-  el.addEventListener('pointerup', function (e) { down = false; send(2, e); });
-  el.addEventListener('pointercancel', function (e) { down = false; send(3, e); });
+  function pinch(kind, x, y, f) {
+    if (!window.lrPtr) return;
+    var r = el.getBoundingClientRect();
+    window.lrPinchF = f;
+    window.lrPtr(kind, x - r.left, y - r.top);
+  }
+  function two() {
+    var k = Object.keys(pts), a = pts[k[0]], b = pts[k[1]];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, d: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) };
+  }
+  el.addEventListener('pointerdown', function (e) {
+    down = true;
+    pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (Object.keys(pts).length === 2) { pinching = true; d0 = two().d; return; }
+    if (Object.keys(pts).length > 2 || ignore) return;
+    send(0, e);
+  });
+  el.addEventListener('pointermove', function (e) {
+    if (pts[e.pointerId]) pts[e.pointerId] = { x: e.clientX, y: e.clientY };
+    if (pinching) {
+      if (Object.keys(pts).length < 2) return;
+      var t = two();
+      pinch(5, t.x, t.y, t.d / d0);
+      d0 = t.d;
+      return;
+    }
+    if (!ignore) send(1, e);
+  });
+  el.addEventListener('wheel', function (e) {
+    if (!window.lrPtr) return;
+    e.preventDefault();
+    if (e.ctrlKey) { pinch(5, e.clientX, e.clientY, Math.exp(-e.deltaY * 0.01)); pinch(6, e.clientX, e.clientY, 1); return; }
+    window.lrPtr(4, 0, e.deltaY);
+  }, { passive: false });
+  function end(kind, e) {
+    delete pts[e.pointerId];
+    var n = Object.keys(pts).length;
+    if (pinching) {
+      if (n < 2) { pinching = false; ignore = true; pinch(6, e.clientX, e.clientY, 1); send(2, e); }
+    } else if (!ignore) {
+      send(kind, e);
+    }
+    if (n === 0) { down = false; ignore = false; }
+  }
+  el.addEventListener('pointerup', function (e) { end(2, e); });
+  el.addEventListener('pointercancel', function (e) { end(3, e); });
 
   function status(t) { var el = document.getElementById('boot'); if (el) el.textContent = t; }
   Promise.all(waits).then(function () {

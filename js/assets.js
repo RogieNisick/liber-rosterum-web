@@ -18,6 +18,24 @@ window.LR_ASSETS = [
   "art/slot_war_engine.png",
   "art/slot_warlord.png",
   "news_scroll.png"];
+window.LR_LIB = [
+  "00_rulebook.idx.gz",
+  "01_astartes.idx.gz",
+  "02_hereticus.idx.gz",
+  "03_auxilia.idx.gz",
+  "04_mechanicum.idx.gz",
+  "05_questoris.idx.gz",
+  "06_faq.idx.gz",
+  "07_legacies.idx.gz",
+  "08_blackshields.idx.gz",
+  "09_daemons.idx.gz",
+  "10_talons.idx.gz",
+  "11_militia.idx.gz",
+  "12_inductii.idx.gz",
+  "13_firstwave.idx.gz",
+  "14_saturn.idx.gz",
+  "15_isstvan.idx.gz",
+];
 window.LR_TEXT = [
   "phrases.txt",
   "phrases_bold.txt",
