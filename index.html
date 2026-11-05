@@ -3,11 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Liber Rosterum · полная веб-версия</title>
+<title>Liber Rosterum</title>
+<!-- С главного экрана — как отдельное приложение, без панелей Safari -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Liber Rosterum">
+<meta name="theme-color" content="#0A0908">
 <style>
-  /* Холст закреплён на экране: iOS Safari иначе прокручивает страницу и сдвигает меню вверх */
+  /* Страница закреплена на экране: iOS Safari иначе прокручивает её и сдвигает меню вверх */
   html, body { margin: 0; width: 100%; height: 100%; position: fixed; inset: 0; background: #0A0908; overflow: hidden; overscroll-behavior: none; touch-action: none; }
-  canvas { position: fixed; left: 0; top: 0; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 </style>
 </head>
 <body>
@@ -173,6 +181,20 @@
     if (window.lrStart) window.lrStart();
   });
 })();
+// ?diag — замеры экрана поверх интерфейса: понять, почему что-то не так на конкретном телефоне
+if (/[?&]diag/.test(location.search)) {
+  (function () {
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:8px;right:8px;top:64px;z-index:9;padding:8px;background:#000c;color:#7f7;font:13px monospace;white-space:pre-wrap;pointer-events:none;';
+    document.body.appendChild(box);
+    setInterval(function () {
+      var c = window.LRCANVAS, v = window.visualViewport, r = c.getBoundingClientRect(), i = window.LRINSET;
+      box.textContent = 'dpr ' + window.devicePixelRatio + '\ncanvas ' + c.width + 'x' + c.height + '\ncss ' + r.width + 'x' + r.height +
+        '\ninner ' + window.innerWidth + 'x' + window.innerHeight + '\nvv ' + (v ? v.width + 'x' + v.height + ' scale ' + v.scale : '-') +
+        '\ninset ' + i.top + ' ' + i.bottom + '\nstandalone ' + (window.navigator.standalone === true);
+    }, 500);
+  })();
+}
 </script>
 </body>
 </html>
