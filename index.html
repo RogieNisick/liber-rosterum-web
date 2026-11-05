@@ -15,7 +15,8 @@
 <style>
   /* Страница закреплена на экране: iOS Safari иначе прокручивает её и сдвигает меню вверх */
   html, body { margin: 0; width: 100%; height: 100%; position: fixed; inset: 0; background: #0A0908; overflow: hidden; overscroll-behavior: none; touch-action: none; }
-  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* Холст тоже закреплён: без этого на iPhone он уезжает вверх под системную строку */
+  canvas { position: fixed; left: 0; top: 0; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
 </style>
 </head>
 <body>
@@ -189,7 +190,7 @@ if (/[?&]diag/.test(location.search)) {
     document.body.appendChild(box);
     setInterval(function () {
       var c = window.LRCANVAS, v = window.visualViewport, r = c.getBoundingClientRect(), i = window.LRINSET;
-      box.textContent = 'dpr ' + window.devicePixelRatio + '\ncanvas ' + c.width + 'x' + c.height + '\ncss ' + r.width + 'x' + r.height +
+      box.textContent = 'dpr ' + window.devicePixelRatio + '\ncanvas ' + c.width + 'x' + c.height + '\ncss ' + r.width + 'x' + r.height + ' top ' + r.top + ' scrollY ' + window.scrollY +
         '\ninner ' + window.innerWidth + 'x' + window.innerHeight + '\nvv ' + (v ? v.width + 'x' + v.height + ' scale ' + v.scale : '-') +
         '\ninset ' + i.top + ' ' + i.bottom + '\nstandalone ' + (window.navigator.standalone === true);
     }, 500);
