@@ -35,6 +35,7 @@ window.LR_LIB = [
   "13_firstwave.idx.gz",
   "14_saturn.idx.gz",
   "15_isstvan.idx.gz",
+  "16_imperium.idx.gz",
 ];
 window.LR_TEXT = [
   "phrases.txt",
